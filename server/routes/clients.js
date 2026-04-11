@@ -4,109 +4,91 @@ const { auth, adminOnly } = require('../middleware/auth');
 
 const router = express.Router();
 
+// GET /api/clients
 router.get('/', auth, async (req, res) => {
   try {
     let sectorFilter = '';
     let params = [];
-
     if (req.user.role !== 'admin' && req.user.sectors.length > 0) {
-      sectorFilter = `AND c.sector_id = ANY($1::int[])`;
+      sectorFilter = 'AND c.sector_id = ANY($1::int[])';
       params = [req.user.sectors];
     }
-
     const rows = await query(
-      `SELECT c.*, s.name AS sector_name, u.full_name AS cobrador_name
+      `SELECT c.*, s.name AS sector_name
        FROM clients c
-       JOIN sectors s ON s.id = c.sector_id
-       LEFT JOIN users u ON u.id = c.created_by
+       LEFT JOIN sectors s ON s.id = c.sector_id
        WHERE c.active = 1 ${sectorFilter}
-       ORDER BY s.name, c.full_name`,
+       ORDER BY c.full_name`,
       params
     );
     res.json(rows);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Error del servidor' });
-  }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Error del servidor' }); }
 });
 
+// GET /api/clients/:id
 router.get('/:id', auth, async (req, res) => {
   try {
     const client = await queryOne(
-      `SELECT c.*, s.name AS sector_name, u.full_name AS cobrador_name
+      `SELECT c.*, s.name AS sector_name
        FROM clients c
-       JOIN sectors s ON s.id = c.sector_id
-       LEFT JOIN users u ON u.id = c.created_by
+       LEFT JOIN sectors s ON s.id = c.sector_id
        WHERE c.id = $1`,
       [req.params.id]
     );
     if (!client) return res.status(404).json({ error: 'Cliente no encontrado' });
-    res.json(client);
-  } catch (err) {
-    res.status(500).json({ error: 'Error del servidor' });
-  }
+
+    // Include their credits
+    const credits = await query(
+      `SELECT cr.* FROM credits cr WHERE cr.client_id = $1 AND cr.active = 1
+       ORDER BY cr.created_at DESC`,
+      [req.params.id]
+    );
+    res.json({ ...client, credits });
+  } catch (err) { res.status(500).json({ error: 'Error del servidor' }); }
 });
 
+// POST /api/clients
 router.post('/', auth, async (req, res) => {
   try {
-    const { full_name, credit_number, address, product_name, payment_period, sector_id, start_date } = req.body;
-    if (!full_name || !credit_number || !payment_period || !sector_id || !start_date) {
-      return res.status(400).json({ error: 'Faltan campos requeridos' });
-    }
-    const validPeriods = ['daily', 'weekly', 'biweekly', 'monthly'];
-    if (!validPeriods.includes(payment_period)) {
-      return res.status(400).json({ error: 'Período de pago inválido' });
+    const { full_name, phone, address, sector_id } = req.body;
+    if (!full_name || !full_name.trim()) {
+      return res.status(400).json({ error: 'El nombre es requerido' });
     }
     const result = await run(
-      `INSERT INTO clients
-         (full_name, credit_number, address, product_name, payment_period,
-          sector_id, start_date, next_due_date, created_by)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id`,
-      [full_name.trim(), credit_number.trim(), address || '', product_name || '',
-       payment_period, sector_id, start_date, start_date, req.user.id]
+      `INSERT INTO clients (full_name, phone, address, sector_id, created_by)
+       VALUES ($1, $2, $3, $4, $5) RETURNING id`,
+      [full_name.trim(), phone || '', address || '', sector_id || null, req.user.id]
     );
     res.status(201).json({ id: result.rows[0].id });
-  } catch (err) {
-    if (err.code === '23505') return res.status(409).json({ error: 'El número de crédito ya existe' });
-    res.status(500).json({ error: 'Error del servidor' });
-  }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Error del servidor' }); }
 });
 
-router.put('/:id', auth, adminOnly, async (req, res) => {
+// PUT /api/clients/:id
+router.put('/:id', auth, async (req, res) => {
   try {
-    const { full_name, credit_number, address, product_name, payment_period, sector_id, next_due_date } = req.body;
+    const { full_name, phone, address, sector_id } = req.body;
     const current = await queryOne('SELECT * FROM clients WHERE id = $1', [req.params.id]);
     if (!current) return res.status(404).json({ error: 'Cliente no encontrado' });
     await run(
-      `UPDATE clients SET
-         full_name=$1, credit_number=$2, address=$3, product_name=$4,
-         payment_period=$5, sector_id=$6, next_due_date=$7
-       WHERE id=$8`,
+      `UPDATE clients SET full_name=$1, phone=$2, address=$3, sector_id=$4 WHERE id=$5`,
       [
         full_name ?? current.full_name,
-        credit_number ?? current.credit_number,
+        phone ?? current.phone,
         address ?? current.address,
-        product_name ?? current.product_name,
-        payment_period ?? current.payment_period,
         sector_id ?? current.sector_id,
-        next_due_date ?? current.next_due_date,
         req.params.id,
       ]
     );
     res.json({ ok: true });
-  } catch (err) {
-    if (err.code === '23505') return res.status(409).json({ error: 'El número de crédito ya existe' });
-    res.status(500).json({ error: 'Error del servidor' });
-  }
+  } catch (err) { res.status(500).json({ error: 'Error del servidor' }); }
 });
 
+// DELETE /api/clients/:id — admin
 router.delete('/:id', auth, adminOnly, async (req, res) => {
   try {
     await run('UPDATE clients SET active = 0 WHERE id = $1', [req.params.id]);
     res.json({ ok: true });
-  } catch (err) {
-    res.status(500).json({ error: 'Error del servidor' });
-  }
+  } catch (err) { res.status(500).json({ error: 'Error del servidor' }); }
 });
 
 module.exports = router;

@@ -21,6 +21,7 @@ app.use('/api/auth', require('./routes/auth'));
 app.use('/api/sectors', require('./routes/sectors'));
 app.use('/api/users', require('./routes/users'));
 app.use('/api/clients', require('./routes/clients'));
+app.use('/api/credits', require('./routes/credits').router);
 app.use('/api/collections', require('./routes/collections'));
 
 // Serve built React app in production (local `npm start`)

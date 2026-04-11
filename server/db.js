@@ -40,23 +40,34 @@ async function initDb() {
     );
 
     CREATE TABLE IF NOT EXISTS clients (
-      id             SERIAL PRIMARY KEY,
-      full_name      TEXT    NOT NULL,
-      credit_number  TEXT    UNIQUE NOT NULL,
-      address        TEXT    DEFAULT '',
-      product_name   TEXT    DEFAULT '',
-      payment_period TEXT    NOT NULL,
-      sector_id      INTEGER NOT NULL REFERENCES sectors(id),
-      start_date     TEXT    NOT NULL,
-      next_due_date  TEXT    NOT NULL,
-      active         INTEGER NOT NULL DEFAULT 1,
-      created_by     INTEGER REFERENCES users(id),
-      created_at     TIMESTAMP DEFAULT NOW()
+      id         SERIAL PRIMARY KEY,
+      full_name  TEXT    NOT NULL,
+      phone      TEXT    DEFAULT '',
+      address    TEXT    DEFAULT '',
+      sector_id  INTEGER REFERENCES sectors(id),
+      active     INTEGER NOT NULL DEFAULT 1,
+      created_by INTEGER REFERENCES users(id),
+      created_at TIMESTAMP DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS credits (
+      id                SERIAL PRIMARY KEY,
+      client_id         INTEGER NOT NULL REFERENCES clients(id),
+      credit_number     TEXT    UNIQUE NOT NULL,
+      quota_value       NUMERIC(12,2) NOT NULL DEFAULT 0,
+      product_reference TEXT    DEFAULT '',
+      payment_period    TEXT    NOT NULL,
+      specific_days     TEXT    DEFAULT '[]',
+      start_date        TEXT    NOT NULL,
+      next_due_date     TEXT    NOT NULL,
+      active            INTEGER NOT NULL DEFAULT 1,
+      created_by        INTEGER REFERENCES users(id),
+      created_at        TIMESTAMP DEFAULT NOW()
     );
 
     CREATE TABLE IF NOT EXISTS collection_records (
       id           SERIAL PRIMARY KEY,
-      client_id    INTEGER NOT NULL REFERENCES clients(id),
+      credit_id    INTEGER NOT NULL REFERENCES credits(id),
       cobrador_id  INTEGER REFERENCES users(id),
       due_date     TEXT    NOT NULL,
       status       TEXT    NOT NULL,
@@ -65,14 +76,13 @@ async function initDb() {
       recorded_at  TIMESTAMP DEFAULT NOW()
     );
 
-    CREATE INDEX IF NOT EXISTS idx_records_client_due
-      ON collection_records(client_id, due_date DESC);
+    CREATE INDEX IF NOT EXISTS idx_records_credit_due
+      ON collection_records(credit_id, due_date DESC);
 
-    CREATE INDEX IF NOT EXISTS idx_clients_due_date
-      ON clients(next_due_date, active);
+    CREATE INDEX IF NOT EXISTS idx_credits_due_date
+      ON credits(next_due_date, active);
   `);
 
-  // Seed admin if empty
   const { rows } = await pool.query('SELECT COUNT(*) AS cnt FROM users');
   if (Number(rows[0].cnt) === 0) {
     const hash = bcrypt.hashSync('admin123', 10);
