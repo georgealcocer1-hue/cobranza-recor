@@ -56,13 +56,15 @@ function SectorSelect({ value, onChange, sectors, onCreateSector }) {
       {open && (
         <div className="absolute z-20 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
           {filtered.map(s => (
-            <button key={s.id} type="button" onMouseDown={() => select(s)}
+            <button key={s.id} type="button"
+              onMouseDown={e => { e.preventDefault(); select(s) }}
               className="w-full text-left px-3 py-2 text-sm hover:bg-blue-50 hover:text-blue-700">
               {s.name}
             </button>
           ))}
           {showCreate && (
-            <button type="button" onMouseDown={handleCreate}
+            <button type="button"
+              onMouseDown={e => { e.preventDefault(); handleCreate() }}
               className="w-full text-left px-3 py-2 text-sm text-blue-600 hover:bg-blue-50 border-t border-gray-100 font-medium">
               + Crear sector "{input.trim()}"
             </button>
