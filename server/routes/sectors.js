@@ -1,57 +1,59 @@
 const express = require('express');
-const db = require('../db');
+const { query, queryOne, run } = require('../db');
 const { auth, adminOnly } = require('../middleware/auth');
 
 const router = express.Router();
 
-// GET /api/sectors — all users
-router.get('/', auth, (req, res) => {
-  const sectors = db.prepare('SELECT * FROM sectors ORDER BY name').all();
-  res.json(sectors);
-});
-
-// POST /api/sectors — admin only
-router.post('/', auth, adminOnly, (req, res) => {
-  const { name } = req.body;
-  if (!name || !name.trim()) {
-    return res.status(400).json({ error: 'Nombre requerido' });
-  }
+router.get('/', auth, async (req, res) => {
   try {
-    const result = db.prepare('INSERT INTO sectors (name) VALUES (?)').run(name.trim());
-    res.status(201).json({ id: result.lastInsertRowid, name: name.trim() });
-  } catch (e) {
-    if (e.message.includes('UNIQUE')) {
-      return res.status(409).json({ error: 'Ya existe un sector con ese nombre' });
-    }
-    throw e;
+    const rows = await query('SELECT * FROM sectors ORDER BY name');
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: 'Error del servidor' });
   }
 });
 
-// PUT /api/sectors/:id — admin only
-router.put('/:id', auth, adminOnly, (req, res) => {
-  const { name } = req.body;
-  if (!name || !name.trim()) {
-    return res.status(400).json({ error: 'Nombre requerido' });
-  }
+router.post('/', auth, adminOnly, async (req, res) => {
   try {
-    db.prepare('UPDATE sectors SET name = ? WHERE id = ?').run(name.trim(), req.params.id);
+    const { name } = req.body;
+    if (!name || !name.trim()) return res.status(400).json({ error: 'Nombre requerido' });
+    const result = await run(
+      'INSERT INTO sectors (name) VALUES ($1) RETURNING id, name',
+      [name.trim()]
+    );
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    if (err.code === '23505') return res.status(409).json({ error: 'Ya existe un sector con ese nombre' });
+    res.status(500).json({ error: 'Error del servidor' });
+  }
+});
+
+router.put('/:id', auth, adminOnly, async (req, res) => {
+  try {
+    const { name } = req.body;
+    if (!name || !name.trim()) return res.status(400).json({ error: 'Nombre requerido' });
+    await run('UPDATE sectors SET name = $1 WHERE id = $2', [name.trim(), req.params.id]);
     res.json({ ok: true });
-  } catch (e) {
-    if (e.message.includes('UNIQUE')) {
-      return res.status(409).json({ error: 'Ya existe un sector con ese nombre' });
-    }
-    throw e;
+  } catch (err) {
+    if (err.code === '23505') return res.status(409).json({ error: 'Ya existe un sector con ese nombre' });
+    res.status(500).json({ error: 'Error del servidor' });
   }
 });
 
-// DELETE /api/sectors/:id — admin only
-router.delete('/:id', auth, adminOnly, (req, res) => {
-  const inUse = db.prepare('SELECT COUNT(*) as cnt FROM clients WHERE sector_id = ?').get(req.params.id);
-  if (inUse.cnt > 0) {
-    return res.status(409).json({ error: 'No se puede eliminar: hay clientes en este sector' });
+router.delete('/:id', auth, adminOnly, async (req, res) => {
+  try {
+    const inUse = await queryOne(
+      'SELECT COUNT(*) AS cnt FROM clients WHERE sector_id = $1',
+      [req.params.id]
+    );
+    if (Number(inUse.cnt) > 0) {
+      return res.status(409).json({ error: 'No se puede eliminar: hay clientes en este sector' });
+    }
+    await run('DELETE FROM sectors WHERE id = $1', [req.params.id]);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Error del servidor' });
   }
-  db.prepare('DELETE FROM sectors WHERE id = ?').run(req.params.id);
-  res.json({ ok: true });
 });
 
 module.exports = router;
