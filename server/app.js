@@ -13,7 +13,21 @@ let dbReady = null;
 app.use(async (req, res, next) => {
   if (!dbReady) dbReady = initDb().catch(err => { dbReady = null; throw err; });
   try { await dbReady; next(); }
-  catch (err) { console.error(err); res.status(503).json({ error: 'Base de datos no disponible' }); }
+  catch (err) {
+    console.error('initDb error:', err);
+    res.status(503).json({ error: 'Base de datos no disponible', detail: err.message });
+  }
+});
+
+// Health check (diagnóstico)
+app.get('/api/health', async (req, res) => {
+  try {
+    const { pool } = require('./db');
+    await pool.query('SELECT 1');
+    res.json({ ok: true, db: 'conectada' });
+  } catch (err) {
+    res.status(503).json({ ok: false, error: err.message });
+  }
 });
 
 // API Routes
