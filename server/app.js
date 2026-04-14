@@ -37,6 +37,7 @@ app.use('/api/users', require('./routes/users'));
 app.use('/api/clients', require('./routes/clients'));
 app.use('/api/credits', require('./routes/credits').router);
 app.use('/api/collections', require('./routes/collections'));
+app.use('/api/stats', require('./routes/stats'));
 
 // Serve built React app in production (local `npm start`)
 if (process.env.NODE_ENV === 'production') {

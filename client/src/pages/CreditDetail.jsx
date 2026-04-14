@@ -1,5 +1,7 @@
+import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useAuth } from '../context/AuthContext'
 import Badge from '../components/Badge'
 import api from '../api'
 
@@ -12,6 +14,14 @@ const DAY_NAMES = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
 export default function CreditDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const { user } = useAuth()
+  const qc = useQueryClient()
+  const [confirmDelete, setConfirmDelete] = useState(false)
+
+  const deleteMutation = useMutation({
+    mutationFn: () => api.delete(`/credits/${id}`),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['credits'] }); navigate('/credits') },
+  })
 
   const { data: credit, isLoading } = useQuery({
     queryKey: ['credit', id],
@@ -45,6 +55,30 @@ export default function CreditDetail() {
           </div>
           <p className="text-2xl font-bold text-blue-600">${Number(credit.quota_value).toFixed(2)}</p>
         </div>
+
+        {user?.role === 'admin' && (
+          <div className="mb-3">
+            {!confirmDelete ? (
+              <button onClick={() => setConfirmDelete(true)}
+                className="text-sm text-red-500 hover:text-red-700">
+                Eliminar crédito
+              </button>
+            ) : (
+              <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                <p className="text-sm text-red-700 flex-1">Confirmar eliminación?</p>
+                <button onClick={() => deleteMutation.mutate()}
+                  disabled={deleteMutation.isPending}
+                  className="text-sm bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700 disabled:opacity-50">
+                  {deleteMutation.isPending ? '...' : 'Sí, eliminar'}
+                </button>
+                <button onClick={() => setConfirmDelete(false)}
+                  className="text-sm text-gray-600 hover:text-gray-800">
+                  Cancelar
+                </button>
+              </div>
+            )}
+          </div>
+        )}
         <div className="grid grid-cols-2 gap-3 text-sm">
           <div>
             <p className="text-gray-400 text-xs">Período</p>

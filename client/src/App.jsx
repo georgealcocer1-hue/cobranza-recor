@@ -10,6 +10,7 @@ import Credits from './pages/Credits'
 import CreditDetail from './pages/CreditDetail'
 import AdminUsers from './pages/admin/Users'
 import AdminSectors from './pages/admin/Sectors'
+import Stats from './pages/Stats'
 
 function wrap(Page, adminOnly = false) {
   return (
@@ -28,6 +29,7 @@ function AppRoutes() {
       <Route path="/clients/:id"   element={wrap(ClientDetail)} />
       <Route path="/credits"       element={wrap(Credits)} />
       <Route path="/credits/:id"   element={wrap(CreditDetail)} />
+      <Route path="/admin/stats"   element={wrap(Stats, true)} />
       <Route path="/admin/users"   element={wrap(AdminUsers, true)} />
       <Route path="/admin/sectors" element={wrap(AdminSectors, true)} />
       <Route path="*"              element={<Navigate to="/" replace />} />

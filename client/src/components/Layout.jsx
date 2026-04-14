@@ -8,8 +8,9 @@ const navItems = [
 ]
 
 const adminItems = [
-  { to: '/admin/sectors', label: 'Sectores',   icon: '🗺️' },
-  { to: '/admin/users',   label: 'Cobradores', icon: '👤' },
+  { to: '/admin/stats',   label: 'Estadísticas', icon: '📊' },
+  { to: '/admin/sectors', label: 'Sectores',     icon: '🗺️' },
+  { to: '/admin/users',   label: 'Cobradores',   icon: '👤' },
 ]
 
 export default function Layout({ children }) {
