@@ -38,17 +38,22 @@ function RecordModal({ credit, onClose, onSuccess }) {
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-md">
-        <div className="p-5 border-b">
-          <h3 className="font-semibold text-gray-900">{credit.client_name}</h3>
-          <p className="text-sm text-gray-500">
-            Crédito #{credit.credit_number} · Cuota: <span className="font-medium text-gray-700">${Number(credit.quota_value).toFixed(2)}</span>
-          </p>
+    <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50">
+      <div className="bg-white rounded-t-2xl sm:rounded-xl shadow-2xl w-full sm:max-w-md max-h-[90vh] overflow-y-auto">
+        <div className="p-4 sm:p-5 border-b sticky top-0 bg-white rounded-t-2xl sm:rounded-t-xl z-10">
+          <div className="flex items-center justify-between">
+            <div className="min-w-0 flex-1">
+              <h3 className="font-semibold text-gray-900 truncate">{credit.client_name}</h3>
+              <p className="text-sm text-gray-500">
+                #{credit.credit_number} · <span className="font-medium text-gray-700">${Number(credit.quota_value).toFixed(2)}</span>
+              </p>
+            </div>
+            <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-2xl ml-2 p-1">×</button>
+          </div>
           <p className="text-xs text-gray-400 mt-0.5">{credit.sector_name} · {credit.client_address}</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-5 space-y-4">
+        <form onSubmit={handleSubmit} className="p-4 sm:p-5 space-y-4">
           <div>
             <p className="text-sm font-medium text-gray-700 mb-2">Resultado de visita</p>
             <div className="grid grid-cols-3 gap-2">
@@ -58,7 +63,7 @@ function RecordModal({ credit, onClose, onSuccess }) {
                 { value: 'rescheduled', label: 'Reagendar', cls: 'border-blue-400 bg-blue-50 text-blue-800' },
               ].map(opt => (
                 <button key={opt.value} type="button" onClick={() => setStatus(opt.value)}
-                  className={`border-2 rounded-lg py-3 text-sm font-medium transition-all ${
+                  className={`border-2 rounded-xl py-3 text-sm font-medium transition-all ${
                     status === opt.value ? opt.cls + ' ring-2 ring-offset-1' : 'border-gray-200 text-gray-600 hover:border-gray-300'
                   }`}>
                   {opt.label}
@@ -72,7 +77,7 @@ function RecordModal({ credit, onClose, onSuccess }) {
               <label className="block text-sm font-medium text-gray-700 mb-1">Nueva fecha de pago</label>
               <input type="date" value={newDate} onChange={e => setNewDate(e.target.value)}
                 min={new Date().toISOString().slice(0, 10)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
             </div>
           )}
 
@@ -80,18 +85,18 @@ function RecordModal({ credit, onClose, onSuccess }) {
             <label className="block text-sm font-medium text-gray-700 mb-1">Notas (opcional)</label>
             <input type="text" value={notes} onChange={e => setNotes(e.target.value)}
               placeholder="Ej: Pagará mañana por la tarde"
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
           </div>
 
           {error && <p className="text-red-600 text-sm">{error}</p>}
 
           <div className="flex gap-2 pt-1">
             <button type="button" onClick={onClose}
-              className="flex-1 border border-gray-300 text-gray-700 rounded-lg py-2.5 text-sm hover:bg-gray-50">
+              className="flex-1 border border-gray-300 text-gray-700 rounded-xl py-3 text-sm hover:bg-gray-50">
               Cancelar
             </button>
             <button type="submit" disabled={mutation.isPending}
-              className="flex-1 bg-blue-600 text-white rounded-lg py-2.5 text-sm font-medium hover:bg-blue-700 disabled:opacity-50">
+              className="flex-1 bg-blue-600 text-white rounded-xl py-3 text-sm font-medium hover:bg-blue-700 disabled:opacity-50">
               {mutation.isPending ? 'Guardando...' : 'Guardar'}
             </button>
           </div>
@@ -128,75 +133,77 @@ export default function Dashboard() {
 
   return (
     <div>
-      <div className="flex items-start justify-between mb-6 flex-wrap gap-3">
-        <div>
-          <h2 className="text-xl font-bold text-gray-900">Cobros del Día</h2>
-          <p className="text-sm text-gray-500 capitalize mt-0.5">{today}</p>
-        </div>
+      {/* Header */}
+      <div className="mb-4">
+        <h2 className="text-lg sm:text-xl font-bold text-gray-900">Cobros del Día</h2>
+        <p className="text-sm text-gray-500 capitalize mt-0.5">{today}</p>
+      </div>
 
-        <div className="flex items-center gap-3 flex-wrap">
-          <select value={selectedSector} onChange={e => setSelectedSector(e.target.value)}
-            className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
-            <option value="all">Todos los sectores</option>
-            {sectors.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-          </select>
+      {/* Controls */}
+      <div className="flex items-center gap-2 mb-4 flex-wrap">
+        <select value={selectedSector} onChange={e => setSelectedSector(e.target.value)}
+          className="flex-1 min-w-[140px] border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+          <option value="all">Todos los sectores</option>
+          {sectors.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+        </select>
 
-          <button onClick={() => refetch()}
-            className="border border-gray-300 text-gray-700 rounded-lg px-3 py-2 text-sm hover:bg-gray-50">
-            Actualizar
-          </button>
+        <button onClick={() => refetch()}
+          className="border border-gray-300 text-gray-700 rounded-xl px-3 py-2.5 text-sm hover:bg-gray-50 shrink-0">
+          Actualizar
+        </button>
+      </div>
 
-          <div className="flex items-center gap-2">
-            <span className="bg-green-100 text-green-800 text-sm font-medium px-3 py-1.5 rounded-full">
-              {done.length} cobrados
-            </span>
-            <span className="bg-orange-100 text-orange-800 text-sm font-medium px-3 py-1.5 rounded-full">
-              {pending.length} pendientes
-            </span>
-          </div>
-        </div>
+      {/* Status badges */}
+      <div className="flex items-center gap-2 mb-4">
+        <span className="bg-green-100 text-green-800 text-sm font-medium px-3 py-1.5 rounded-full">
+          {done.length} cobrados
+        </span>
+        <span className="bg-orange-100 text-orange-800 text-sm font-medium px-3 py-1.5 rounded-full">
+          {pending.length} pendientes
+        </span>
       </div>
 
       {isLoading ? (
         <div className="text-center text-gray-400 py-20">Cargando...</div>
       ) : credits.length === 0 ? (
-        <div className="text-center py-20 bg-white rounded-xl border border-gray-100">
+        <div className="text-center py-20 bg-white rounded-2xl border border-gray-100">
           <p className="text-4xl mb-3">✅</p>
           <p className="font-medium text-gray-700">Sin cobros pendientes para hoy</p>
         </div>
       ) : (
         <div className="space-y-2">
           {credits.map(credit => {
-            const done = recorded.has(credit.id)
+            const isDone = recorded.has(credit.id)
             return (
               <div key={credit.id}
-                className={`bg-white rounded-xl border border-gray-100 px-4 py-3 flex items-center gap-4 transition-all ${done ? 'opacity-40' : ''}`}>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
+                className={`bg-white rounded-2xl border border-gray-100 p-4 transition-all ${isDone ? 'opacity-40' : ''}`}>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
                     <button onClick={() => navigate(`/credits/${credit.id}`)}
-                      className="font-semibold text-gray-900 text-sm hover:text-blue-600">
+                      className="font-semibold text-gray-900 text-sm hover:text-blue-600 text-left">
                       {credit.client_name}
                     </button>
-                    <span className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full">{credit.sector_name}</span>
-                    <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">{PERIOD_LABELS[credit.payment_period]}</span>
+                    <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                      <span className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full">{credit.sector_name}</span>
+                      <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">{PERIOD_LABELS[credit.payment_period]}</span>
+                    </div>
+                    <div className="flex items-center gap-2 mt-1 flex-wrap">
+                      <p className="text-xs text-gray-400">#{credit.credit_number}</p>
+                      {credit.client_address && <p className="text-xs text-gray-400 truncate">{credit.client_address}</p>}
+                    </div>
                   </div>
-                  <div className="flex items-center gap-3 mt-0.5 flex-wrap">
-                    <p className="text-xs text-gray-400">#{credit.credit_number}</p>
-                    {credit.client_address && <p className="text-xs text-gray-400">{credit.client_address}</p>}
-                    {credit.client_phone && <p className="text-xs text-gray-400">📞 {credit.client_phone}</p>}
-                  </div>
-                </div>
 
-                <div className="text-right shrink-0">
-                  <p className="text-lg font-bold text-gray-900">${Number(credit.quota_value).toFixed(2)}</p>
-                  {done ? (
-                    <span className="text-green-600 text-xs font-medium">✓ Registrado</span>
-                  ) : (
-                    <button onClick={() => setActiveCredit(credit)}
-                      className="bg-blue-600 text-white text-sm px-4 py-1.5 rounded-lg hover:bg-blue-700 transition-colors mt-1">
-                      Registrar
-                    </button>
-                  )}
+                  <div className="text-right shrink-0">
+                    <p className="text-lg font-bold text-gray-900">${Number(credit.quota_value).toFixed(2)}</p>
+                    {isDone ? (
+                      <span className="text-green-600 text-xs font-medium">✓ Registrado</span>
+                    ) : (
+                      <button onClick={() => setActiveCredit(credit)}
+                        className="bg-blue-600 text-white text-sm px-4 py-2 rounded-xl hover:bg-blue-700 transition-colors mt-1 w-full">
+                        Registrar
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             )

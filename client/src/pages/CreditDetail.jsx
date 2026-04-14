@@ -40,45 +40,22 @@ export default function CreditDetail() {
   const specificDays = Array.isArray(credit.specific_days) ? credit.specific_days : []
 
   return (
-    <div className="max-w-2xl">
+    <div>
       <button onClick={() => navigate('/credits')}
-        className="text-sm text-blue-600 hover:text-blue-800 mb-4 flex items-center gap-1">
+        className="text-sm text-blue-600 hover:text-blue-800 mb-4 flex items-center gap-1 py-1">
         ← Volver a créditos
       </button>
 
       {/* Credit info */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 mb-6">
-        <div className="flex items-start justify-between mb-3">
-          <div>
-            <h2 className="text-xl font-bold text-gray-900">{credit.client_name}</h2>
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-5 mb-4">
+        <div className="flex items-start justify-between gap-3 mb-3">
+          <div className="min-w-0 flex-1">
+            <h2 className="text-lg sm:text-xl font-bold text-gray-900 truncate">{credit.client_name}</h2>
             <p className="text-sm text-gray-500">Crédito #{credit.credit_number}</p>
           </div>
-          <p className="text-2xl font-bold text-blue-600">${Number(credit.quota_value).toFixed(2)}</p>
+          <p className="text-xl sm:text-2xl font-bold text-blue-600 shrink-0">${Number(credit.quota_value).toFixed(2)}</p>
         </div>
 
-        {user?.role === 'admin' && (
-          <div className="mb-3">
-            {!confirmDelete ? (
-              <button onClick={() => setConfirmDelete(true)}
-                className="text-sm text-red-500 hover:text-red-700">
-                Eliminar crédito
-              </button>
-            ) : (
-              <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
-                <p className="text-sm text-red-700 flex-1">Confirmar eliminación?</p>
-                <button onClick={() => deleteMutation.mutate()}
-                  disabled={deleteMutation.isPending}
-                  className="text-sm bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700 disabled:opacity-50">
-                  {deleteMutation.isPending ? '...' : 'Sí, eliminar'}
-                </button>
-                <button onClick={() => setConfirmDelete(false)}
-                  className="text-sm text-gray-600 hover:text-gray-800">
-                  Cancelar
-                </button>
-              </div>
-            )}
-          </div>
-        )}
         <div className="grid grid-cols-2 gap-3 text-sm">
           <div>
             <p className="text-gray-400 text-xs">Período</p>
@@ -110,7 +87,7 @@ export default function CreditDetail() {
           {credit.client_phone && (
             <div>
               <p className="text-gray-400 text-xs">Teléfono</p>
-              <p className="font-medium">{credit.client_phone}</p>
+              <a href={`tel:${credit.client_phone}`} className="font-medium text-blue-600">{credit.client_phone}</a>
             </div>
           )}
           {credit.client_address && (
@@ -120,26 +97,52 @@ export default function CreditDetail() {
             </div>
           )}
         </div>
+
+        {/* Delete */}
+        {user?.role === 'admin' && (
+          <div className="mt-4 pt-3 border-t border-gray-100">
+            {!confirmDelete ? (
+              <button onClick={() => setConfirmDelete(true)}
+                className="text-sm text-red-500 hover:text-red-700 py-1">
+                Eliminar crédito
+              </button>
+            ) : (
+              <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-xl px-3 py-2.5">
+                <p className="text-sm text-red-700 flex-1">¿Confirmar eliminación?</p>
+                <button onClick={() => deleteMutation.mutate()}
+                  disabled={deleteMutation.isPending}
+                  className="text-sm bg-red-600 text-white px-4 py-2 rounded-xl hover:bg-red-700 disabled:opacity-50">
+                  {deleteMutation.isPending ? '...' : 'Sí'}
+                </button>
+                <button onClick={() => setConfirmDelete(false)}
+                  className="text-sm text-gray-600 hover:text-gray-800 py-2">
+                  No
+                </button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* History */}
-      <div>
-        <h3 className="font-semibold text-gray-900 mb-3">Historial de cobros</h3>
-        {history.length === 0 ? (
-          <div className="text-center text-gray-400 py-8 bg-white rounded-xl border border-gray-100">
-            Sin registros de cobro aún
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {history.map(r => (
-              <div key={r.id} className="bg-white rounded-xl border border-gray-100 px-4 py-3 flex items-start justify-between gap-3">
+      <h3 className="font-semibold text-gray-900 mb-3">Historial de cobros</h3>
+      {history.length === 0 ? (
+        <div className="text-center py-12 bg-white rounded-2xl border border-gray-100">
+          <p className="text-3xl mb-2">📋</p>
+          <p className="text-gray-400 text-sm">Sin registros de cobro aún</p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {history.map(r => (
+            <div key={r.id} className="bg-white rounded-2xl border border-gray-100 p-4">
+              <div className="flex items-start justify-between gap-3">
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-0.5">
+                  <div className="flex items-center gap-2 mb-0.5 flex-wrap">
                     <span className="font-medium text-sm text-gray-900">{r.due_date}</span>
                     <Badge status={r.status} />
                   </div>
                   {r.status === 'rescheduled' && r.new_due_date && (
-                    <p className="text-xs text-blue-600">→ Reagendado para: {r.new_due_date}</p>
+                    <p className="text-xs text-blue-600 mt-0.5">→ Reagendado: {r.new_due_date}</p>
                   )}
                   {r.notes && <p className="text-xs text-gray-500 mt-0.5">{r.notes}</p>}
                 </div>
@@ -148,10 +151,10 @@ export default function CreditDetail() {
                   <p className="text-xs text-gray-300">{r.recorded_at}</p>
                 </div>
               </div>
-            ))}
-          </div>
-        )}
-      </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
