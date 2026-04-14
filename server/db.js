@@ -18,6 +18,15 @@ async function run(sql, params = []) {
 }
 
 async function initDb() {
+  // Drop collection_records if it has wrong schema (migration from old schema)
+  try {
+    await pool.query(`SELECT credit_id FROM collection_records LIMIT 1`);
+  } catch (e) {
+    if (e.message && e.message.includes('credit_id')) {
+      await pool.query(`DROP TABLE IF EXISTS collection_records`);
+    }
+  }
+
   // Run each statement separately — required for serverless PostgreSQL drivers
   await pool.query(`
     CREATE TABLE IF NOT EXISTS users (
