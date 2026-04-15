@@ -8,9 +8,12 @@ const router = express.Router();
 // GET /api/collections/today
 router.get('/today', auth, async (req, res) => {
   try {
-    const today = new Date().toISOString().slice(0, 10);
+    // Accepts ?date=YYYY-MM-DD; defaults to today
+    const refDate = /^\d{4}-\d{2}-\d{2}$/.test(req.query.date || '')
+      ? req.query.date
+      : new Date().toISOString().slice(0, 10);
     let sectorFilter = '';
-    let params = [today];
+    let params = [refDate];
 
     if (req.query.sector_id) {
       sectorFilter = 'AND cl.sector_id = $2';

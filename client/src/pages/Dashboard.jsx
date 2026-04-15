@@ -1,9 +1,11 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { format } from 'date-fns'
+import { format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { useNavigate } from 'react-router-dom'
 import api from '../api'
+
+const todayStr = () => new Date().toISOString().slice(0, 10)
 
 const PERIOD_LABELS = {
   daily: 'Diario', weekly: 'Semanal', biweekly: 'Quincenal',
@@ -109,12 +111,13 @@ function RecordModal({ credit, onClose, onSuccess }) {
 export default function Dashboard() {
   const navigate = useNavigate()
   const [selectedSector, setSelectedSector] = useState('all')
+  const [selectedDate, setSelectedDate] = useState(todayStr)
   const [activeCredit, setActiveCredit] = useState(null)
   const [recorded, setRecorded] = useState(new Set())
 
   const { data: allCredits = [], isLoading, refetch } = useQuery({
-    queryKey: ['today'],
-    queryFn: () => api.get('/collections/today').then(r => r.data),
+    queryKey: ['today', selectedDate],
+    queryFn: () => api.get('/collections/today', { params: { date: selectedDate } }).then(r => r.data),
     staleTime: 0,
   })
 
@@ -129,14 +132,37 @@ export default function Dashboard() {
 
   const pending = credits.filter(c => !recorded.has(c.id))
   const done = credits.filter(c => recorded.has(c.id))
-  const today = format(new Date(), "EEEE d 'de' MMMM yyyy", { locale: es })
+  const headerDate = useMemo(
+    () => format(parseISO(selectedDate), "EEEE d 'de' MMMM yyyy", { locale: es }),
+    [selectedDate]
+  )
+  const isToday = selectedDate === todayStr()
+
+  function handleDateChange(e) {
+    setSelectedDate(e.target.value || todayStr())
+    setRecorded(new Set())
+  }
 
   return (
     <div>
       {/* Header */}
       <div className="mb-4">
-        <h2 className="text-lg sm:text-xl font-bold text-gray-900">Cobros del Día</h2>
-        <p className="text-sm text-gray-500 capitalize mt-0.5">{today}</p>
+        <h2 className="text-lg sm:text-xl font-bold text-gray-900">
+          {isToday ? 'Cobros del Día' : 'Cobros para'}
+        </h2>
+        <p className="text-sm text-gray-500 capitalize mt-0.5">{headerDate}</p>
+      </div>
+
+      {/* Date picker */}
+      <div className="flex items-center gap-2 mb-3">
+        <input type="date" value={selectedDate} onChange={handleDateChange}
+          className="flex-1 border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white" />
+        {!isToday && (
+          <button onClick={() => { setSelectedDate(todayStr()); setRecorded(new Set()) }}
+            className="bg-blue-50 text-blue-700 border border-blue-200 rounded-xl px-3 py-2.5 text-sm font-medium hover:bg-blue-100 shrink-0">
+            Hoy
+          </button>
+        )}
       </div>
 
       {/* Controls */}
@@ -168,7 +194,9 @@ export default function Dashboard() {
       ) : credits.length === 0 ? (
         <div className="text-center py-20 bg-white rounded-2xl border border-gray-100">
           <p className="text-4xl mb-3">✅</p>
-          <p className="font-medium text-gray-700">Sin cobros pendientes para hoy</p>
+          <p className="font-medium text-gray-700">
+            {isToday ? 'Sin cobros pendientes para hoy' : 'Sin cobros pendientes para esta fecha'}
+          </p>
         </div>
       ) : (
         <div className="space-y-2">
