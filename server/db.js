@@ -31,6 +31,17 @@ async function initDb() {
     await pool.query(`ALTER TABLE clients ADD COLUMN IF NOT EXISTS phone TEXT DEFAULT ''`);
   } catch (e) { /* table may not exist yet */ }
 
+  // Fix legacy 'clients' tables that mixed credit columns into clients
+  // (drop credit-related columns and relax sector_id NOT NULL)
+  try {
+    await pool.query(`ALTER TABLE clients DROP COLUMN IF EXISTS credit_number`);
+    await pool.query(`ALTER TABLE clients DROP COLUMN IF EXISTS product_name`);
+    await pool.query(`ALTER TABLE clients DROP COLUMN IF EXISTS payment_period`);
+    await pool.query(`ALTER TABLE clients DROP COLUMN IF EXISTS start_date`);
+    await pool.query(`ALTER TABLE clients DROP COLUMN IF EXISTS next_due_date`);
+    await pool.query(`ALTER TABLE clients ALTER COLUMN sector_id DROP NOT NULL`);
+  } catch (e) { /* table may not exist yet */ }
+
   // Run each statement separately — required for serverless PostgreSQL drivers
   await pool.query(`
     CREATE TABLE IF NOT EXISTS users (
