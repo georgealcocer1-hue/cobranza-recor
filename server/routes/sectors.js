@@ -43,16 +43,23 @@ router.put('/:id', auth, adminOnly, async (req, res) => {
 router.delete('/:id', auth, adminOnly, async (req, res) => {
   try {
     const inUse = await queryOne(
-      'SELECT COUNT(*) AS cnt FROM clients WHERE sector_id = $1',
+      'SELECT COUNT(*) AS cnt FROM clients WHERE sector_id = $1 AND active = 1',
       [req.params.id]
     );
     if (Number(inUse.cnt) > 0) {
       return res.status(409).json({ error: 'No se puede eliminar: hay clientes en este sector' });
     }
+    // Release soft-deleted clients still referencing this sector,
+    // so the FK constraint doesn't block the DELETE.
+    await run(
+      'UPDATE clients SET sector_id = NULL WHERE sector_id = $1 AND active = 0',
+      [req.params.id]
+    );
     await run('DELETE FROM sectors WHERE id = $1', [req.params.id]);
     res.json({ ok: true });
   } catch (err) {
-    res.status(500).json({ error: 'Error del servidor' });
+    console.error(err);
+    res.status(500).json({ error: err.message || 'Error del servidor' });
   }
 });
 
