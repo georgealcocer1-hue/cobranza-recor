@@ -60,7 +60,16 @@ router.post('/', auth, async (req, res) => {
       [full_name.trim(), phone || '', address || '', sector_id || null, req.user.id]
     );
     res.status(201).json({ id: result.rows[0].id });
-  } catch (err) { console.error(err); res.status(500).json({ error: 'Error del servidor' }); }
+  } catch (err) {
+    console.error(err);
+    if (err.code === '23503') {
+      return res.status(400).json({ error: 'El sector o usuario referenciado no existe' });
+    }
+    if (err.code === '23502') {
+      return res.status(400).json({ error: `Campo requerido faltante: ${err.column}` });
+    }
+    res.status(500).json({ error: err.message || 'Error del servidor' });
+  }
 });
 
 // PUT /api/clients/:id
