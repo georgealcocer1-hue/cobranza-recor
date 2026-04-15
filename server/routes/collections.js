@@ -1,6 +1,6 @@
 const express = require('express');
 const { query, queryOne, run } = require('../db');
-const { auth } = require('../middleware/auth');
+const { auth, applySectorFilter } = require('../middleware/auth');
 const { advanceDate } = require('./credits');
 
 const router = express.Router();
@@ -12,16 +12,9 @@ router.get('/today', auth, async (req, res) => {
     const refDate = /^\d{4}-\d{2}-\d{2}$/.test(req.query.date || '')
       ? req.query.date
       : new Date().toISOString().slice(0, 10);
-    let sectorFilter = '';
-    let params = [refDate];
 
-    if (req.query.sector_id) {
-      sectorFilter = 'AND cl.sector_id = $2';
-      params.push(req.query.sector_id);
-    } else if (req.user.role !== 'admin' && req.user.sectors.length > 0) {
-      sectorFilter = 'AND cl.sector_id = ANY($2::int[])';
-      params.push(req.user.sectors);
-    }
+    const access = applySectorFilter(req, 'cl.sector_id', [refDate]);
+    if (access.empty) return res.json([]);
 
     const rows = await query(
       `SELECT cr.id, cr.credit_number, cr.quota_value, cr.payment_period,
@@ -34,12 +27,12 @@ router.get('/today', auth, async (req, res) => {
        LEFT JOIN sectors s ON s.id = cl.sector_id
        WHERE cr.active = 1 AND cl.active = 1
          AND cr.next_due_date <= $1
-         ${sectorFilter}
+         ${access.filter}
        ORDER BY s.name, cl.full_name`,
-      params
+      access.params
     );
     res.json(rows);
-  } catch (err) { console.error(err); res.status(500).json({ error: 'Error del servidor' }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: err.message || 'Error del servidor' }); }
 });
 
 // POST /api/collections/record

@@ -1,28 +1,24 @@
 const express = require('express');
 const { query, queryOne, run } = require('../db');
-const { auth, adminOnly } = require('../middleware/auth');
+const { auth, adminOnly, applySectorFilter } = require('../middleware/auth');
 
 const router = express.Router();
 
 // GET /api/clients
 router.get('/', auth, async (req, res) => {
   try {
-    let sectorFilter = '';
-    let params = [];
-    if (req.user.role !== 'admin' && req.user.sectors.length > 0) {
-      sectorFilter = 'AND c.sector_id = ANY($1::int[])';
-      params = [req.user.sectors];
-    }
+    const access = applySectorFilter(req, 'c.sector_id');
+    if (access.empty) return res.json([]);
     const rows = await query(
       `SELECT c.*, s.name AS sector_name
        FROM clients c
        LEFT JOIN sectors s ON s.id = c.sector_id
-       WHERE c.active = 1 ${sectorFilter}
+       WHERE c.active = 1 ${access.filter}
        ORDER BY c.full_name`,
-      params
+      access.params
     );
     res.json(rows);
-  } catch (err) { console.error(err); res.status(500).json({ error: 'Error del servidor' }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: err.message || 'Error del servidor' }); }
 });
 
 // GET /api/clients/:id
@@ -37,6 +33,14 @@ router.get('/:id', auth, async (req, res) => {
     );
     if (!client) return res.status(404).json({ error: 'Cliente no encontrado' });
 
+    // Non-admins may only see clients in their assigned sectors
+    if (req.user.role !== 'admin') {
+      const allowed = Array.isArray(req.user.sectors) ? req.user.sectors : [];
+      if (!client.sector_id || !allowed.includes(client.sector_id)) {
+        return res.status(403).json({ error: 'Sin acceso a este cliente' });
+      }
+    }
+
     // Include their credits
     const credits = await query(
       `SELECT cr.* FROM credits cr WHERE cr.client_id = $1 AND cr.active = 1
@@ -44,7 +48,7 @@ router.get('/:id', auth, async (req, res) => {
       [req.params.id]
     );
     res.json({ ...client, credits });
-  } catch (err) { res.status(500).json({ error: 'Error del servidor' }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: err.message || 'Error del servidor' }); }
 });
 
 // POST /api/clients

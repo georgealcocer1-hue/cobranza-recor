@@ -1,6 +1,6 @@
 const express = require('express');
 const { query, queryOne, run } = require('../db');
-const { auth, adminOnly } = require('../middleware/auth');
+const { auth, adminOnly, applySectorFilter } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -28,24 +28,20 @@ function advanceDate(dateStr, period, specificDays = []) {
 // GET /api/credits
 router.get('/', auth, async (req, res) => {
   try {
-    let sectorFilter = '';
-    let params = [];
-    if (req.user.role !== 'admin' && req.user.sectors.length > 0) {
-      sectorFilter = 'AND cl.sector_id = ANY($1::int[])';
-      params = [req.user.sectors];
-    }
+    const access = applySectorFilter(req, 'cl.sector_id');
+    if (access.empty) return res.json([]);
     const rows = await query(
       `SELECT cr.*, cl.full_name AS client_name, cl.phone AS client_phone,
               cl.address AS client_address, s.name AS sector_name
        FROM credits cr
        JOIN clients cl ON cl.id = cr.client_id
        LEFT JOIN sectors s ON s.id = cl.sector_id
-       WHERE cr.active = 1 ${sectorFilter}
+       WHERE cr.active = 1 ${access.filter}
        ORDER BY cl.full_name, cr.credit_number`,
-      params
+      access.params
     );
     res.json(rows);
-  } catch (err) { console.error(err); res.status(500).json({ error: 'Error del servidor' }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: err.message || 'Error del servidor' }); }
 });
 
 // GET /api/credits/:id
@@ -53,7 +49,7 @@ router.get('/:id', auth, async (req, res) => {
   try {
     const row = await queryOne(
       `SELECT cr.*, cl.full_name AS client_name, cl.phone AS client_phone,
-              cl.address AS client_address, s.name AS sector_name
+              cl.address AS client_address, cl.sector_id, s.name AS sector_name
        FROM credits cr
        JOIN clients cl ON cl.id = cr.client_id
        LEFT JOIN sectors s ON s.id = cl.sector_id
@@ -61,9 +57,18 @@ router.get('/:id', auth, async (req, res) => {
       [req.params.id]
     );
     if (!row) return res.status(404).json({ error: 'Crédito no encontrado' });
+
+    // Non-admins may only see credits in their assigned sectors
+    if (req.user.role !== 'admin') {
+      const allowed = Array.isArray(req.user.sectors) ? req.user.sectors : [];
+      if (!row.sector_id || !allowed.includes(row.sector_id)) {
+        return res.status(403).json({ error: 'Sin acceso a este crédito' });
+      }
+    }
+
     row.specific_days = JSON.parse(row.specific_days || '[]');
     res.json(row);
-  } catch (err) { res.status(500).json({ error: 'Error del servidor' }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: err.message || 'Error del servidor' }); }
 });
 
 // POST /api/credits

@@ -1,11 +1,23 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const rateLimit = require('express-rate-limit');
 const { queryOne, query } = require('../db');
 
 const router = express.Router();
 
-router.post('/login', async (req, res) => {
+// Rate limit brute-force attempts against /login.
+// 10 attempts per 15 minutes per IP. Successful logins do not count.
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skipSuccessfulRequests: true,
+  message: { error: 'Demasiados intentos de inicio de sesión. Intenta más tarde.' },
+});
+
+router.post('/login', loginLimiter, async (req, res) => {
   try {
     const { username, password } = req.body;
     if (!username || !password) {
